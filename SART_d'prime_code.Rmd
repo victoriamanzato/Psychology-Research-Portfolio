@@ -1,0 +1,32 @@
+---
+title: "ANT_timing"
+output: html_document
+date: "2026-07-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+
+data <- read.csv("~/Desktop/research/Elton/SARA/sara_data_VM.csv")
+
+data <- data %>%
+  mutate(
+    hits = 200 - err_om,
+    misses = err_om,
+    false_alarms = err_com,
+    correct_rejections = 25 - err_com,
+
+    hit_rate = (hits + 0.5) / 201,
+    fa_rate = (false_alarms + 0.5) / 26,
+
+    d_prime = qnorm(hit_rate) - qnorm(fa_rate)
+  )
+print(data$d_prime)
+
+out <- data[, c("filename1", "d_prime")]
+write.csv(out, "~/Desktop/sart_dprime.csv", row.names = FALSE)
+```

@@ -1,0 +1,265 @@
+---
+title: "SARA Primary Correlation analysis"
+output: html_document
+date: "2026-07-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(dplyr)
+
+# read data
+data <- read.csv(
+  "~/Desktop/research/Elton/SARA/sara_data_VM.csv",
+  na.strings = "-999"
+)
+
+```
+
+```{r}
+names(data)
+```
+
+
+```{r}
+attention <- c(
+  "meanrt",
+  "stdrt",
+  "err_com",
+  "err_om",
+  "imp_err3",
+  "imp_err_total",
+  "d_prime",
+  "dsm_inatten",
+  "bis_first",
+  "bis_second"
+)
+
+resilience <- c(
+  "cdrisc",
+  "cyrm_total",
+  "cyrm_personal",
+  "cyrm_care"
+)
+
+
+# Run Spearman correlations
+
+#Spearman correlation measures the strength and direction of a monotonic 
+#relationship between two variables, using ranked data instead of raw values.
+
+#less affected by outliers and doesn't need normal distributions to work
+
+#measures monotonic not linear as the change isn't at a constant rate
+
+results <- data.frame()
+
+for(att in attention){
+
+  for(res in resilience){
+
+    # Keep only complete cases for this pair
+    temp <- data[, c(att, res)]
+    temp <- temp[complete.cases(temp), ]
+
+    test <- cor.test(
+      temp[[att]],
+      temp[[res]],
+      method = "spearman",
+      exact = FALSE
+    )
+
+    results <- rbind(
+      results,
+      data.frame(
+        Attention = att,
+        Resilience = res,
+        N = nrow(temp),
+        Rho = unname(test$estimate),
+        P = test$p.value
+      )
+    )
+
+  }
+
+}
+
+
+# Multiple-comparison correction
+#controls for false discovery rate
+
+results$P_BH <- p.adjust(results$P, method = "BH")
+
+
+# Round values
+
+
+results$Rho <- round(results$Rho, 3)
+results$P <- round(results$P, 4)
+results$P_BH <- round(results$P_BH, 4)
+
+
+# Add significance stars
+
+
+results$Sig <- ifelse(results$P_BH < .001, "***",
+               ifelse(results$P_BH < .01, "**",
+               ifelse(results$P_BH < .05, "*", "")))
+
+
+# Sort by adjusted p-value
+
+
+results <- results[order(results$P_BH), ]
+
+
+# View results
+
+
+View(results)
+
+print(results)
+
+
+write.csv(
+  results,
+  "~/Desktop/research/Elton/SARA/SART_Resilience_Correlations.csv",
+  row.names = FALSE
+)
+```
+
+
+
+```{r}
+#just checking distribution and variability
+summary(data[, c(
+  "meanrt",
+  "stdrt",
+  "err_com",
+  "err_om",
+  "imp_err3",
+  "imp_err_total",
+  "d_prime"
+
+)])
+
+hist(data$err_com)
+```
+
+```{r}
+sapply(data[, c(
+  "meanrt",
+  "stdrt",
+  "err_com",
+  "err_om",
+  "imp_err3",
+  "imp_err_total",
+  "d_prime"
+)], sd, na.rm = TRUE)
+```
+```{r}
+#visualize the correlations
+library(ggplot2)
+library(dplyr)
+
+heatmap_data <- results
+
+heatmap_data$Attention <- factor(
+  heatmap_data$Attention,
+  levels = c(
+    "meanrt",
+    "stdrt",
+    "err_com",
+    "err_om",
+    "imp_err3",
+    "imp_err_total",
+    "d_prime",
+    "dsm_inatten",
+    "bis_first",
+    "bis_second"
+  ),
+  labels = c(
+    "Mean RT",
+    "RT Variability",
+    "Commission Errors",
+    "Omission Errors",
+    "Impulsive Errors (3)",
+    "Impulsive Errors (Total)",
+    "d-prime",
+    "DSM Inattention",
+    "BIS First-order",
+    "BIS Second-order"
+  )
+)
+
+heatmap_data$Resilience <- factor(
+  heatmap_data$Resilience,
+  levels = c(
+    "cdrisc",
+    "cyrm_total",
+    "cyrm_personal",
+    "cyrm_care"
+  ),
+  labels = c(
+    "CD-RISC",
+    "CYRM Total",
+    "CYRM Personal",
+    "CYRM Caregiver"
+  )
+)
+
+heatmap_data$Label <- sprintf("%.2f", heatmap_data$Rho)
+
+heatmap_data$Label <- ifelse(
+  heatmap_data$P_BH < .05,
+  paste0(heatmap_data$Label, "*"),
+  heatmap_data$Label
+)
+
+ggplot(heatmap_data,
+       aes(x = Resilience,
+           y = Attention,
+           fill = Rho)) +
+
+  geom_tile(color = "white", linewidth = 0.8) +
+
+  geom_text(aes(label = Label),
+            size = 4.5,
+            fontface = "bold") +
+
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#FA4616",
+    midpoint = 0,
+    limits = c(-0.5, 0.5),
+    name = expression(r[s])
+  ) +
+
+  labs(
+    x = "Resilience Measure",
+    y = "Attention Measure"
+  ) +
+
+  theme_minimal(base_size = 14) +
+
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 35, hjust = 1),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold")
+  )
+
+ggsave(
+  "~/Desktop/research/Elton/SARA/Correlation_Heatmap.png",
+  width = 8,
+  height = 6,
+  dpi = 600
+)
+```
+uses rho values and the astrik shows significant values (ofc postive and negative correlations)
+

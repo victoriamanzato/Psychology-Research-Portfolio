@@ -1,0 +1,94 @@
+---
+title: "SART vs CAARS/BIS Code"
+output: html_document
+date: "2026-07-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+
+library(dplyr)
+
+# read data
+data <- read.csv(
+  "~/Desktop/research/Elton/SARA/sara_data_VM.csv",
+  na.strings = "-999"
+)
+
+#now i want to see if the SART is actually correlated to the CAARS and BIS scores
+
+#-----------------------------
+# SART vs CAARS/BIS
+#-----------------------------
+
+sart <- c(
+  "meanrt",
+  "stdrt",
+  "err_com",
+  "err_om",
+  "imp_err3",
+  "imp_err_total",
+  "d_prime"
+)
+
+self_report <- c(
+  "dsm_inatten",
+  "bis_first",
+  "bis_second"
+)
+
+sart_results <- data.frame()
+
+for(s in sart){
+
+  for(sr in self_report){
+
+    temp <- data[, c(s, sr)]
+    temp <- temp[complete.cases(temp), ]
+
+    test <- cor.test(
+      temp[[s]],
+      temp[[sr]],
+      method = "spearman",
+      exact = FALSE
+    )
+
+    sart_results <- rbind(
+      sart_results,
+      data.frame(
+        SART = s,
+        Self_Report = sr,
+        N = nrow(temp),
+        Rho = round(unname(test$estimate), 3),
+        P = test$p.value
+      )
+    )
+
+  }
+
+}
+
+# BH correction
+sart_results$P_BH <- p.adjust(sart_results$P, method = "BH")
+
+# Significance stars
+sart_results$Sig <- ifelse(sart_results$P_BH < .001, "***",
+                    ifelse(sart_results$P_BH < .01, "**",
+                    ifelse(sart_results$P_BH < .05, "*", "")))
+
+# Sort by significance
+sart_results <- sart_results[order(sart_results$P_BH), ]
+
+View(sart_results)
+
+write.csv(
+  sart_results,
+  "~/Desktop/research/Elton/SARA/SART_vs_CAARS_BIS.csv",
+  row.names = FALSE
+)
+
+```

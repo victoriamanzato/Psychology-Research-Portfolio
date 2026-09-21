@@ -1,0 +1,444 @@
+---
+title: "Gender Differences"
+output: html_document
+date: "2026-07-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+data <- read.csv(
+  "~/Desktop/research/Elton/SARA/sara_data_VM.csv",
+  na.strings = "-999"
+)
+```
+
+```{r}
+#now i want to analyze differences in gender
+
+data$sex <- factor(data$sex,
+                   levels = c(0, 1),
+                   labels = c("Male", "Female"))
+wilcox.test(cdrisc ~ sex, data = data) #male cd risc vs female cd risc
+wilcox.test(d_prime ~ sex, data = data) #male d' vs female d'
+
+variables <- c(
+  "meanrt",
+  "stdrt",
+  "err_com",
+  "err_om",
+  "imp_err3",
+  "imp_err_total",
+  "d_prime",
+  "dsm_inatten",
+  "bis_first",
+  "bis_second",
+  "cdrisc",
+  "cyrm_total",
+  "cyrm_personal",
+  "cyrm_care"
+)
+
+gender_results <- data.frame()
+
+for (v in variables) {
+
+  temp <- data[, c("sex", v)]
+  temp <- temp[complete.cases(temp), ]
+
+  test <- wilcox.test(temp[[v]] ~ temp$sex) #running Mann Whitney
+
+  gender_results <- rbind(
+    gender_results,
+    data.frame(
+      Variable = v,
+      W = test$statistic, #W is the rank sum stat, not interp by itself
+      P = test$p.value
+    )
+  )
+}
+
+# BH correction
+gender_results$P_BH <- p.adjust(gender_results$P, method = "BH") #another BH correction
+
+# Round
+gender_results$P <- round(gender_results$P, 4)
+gender_results$P_BH <- round(gender_results$P_BH, 4)
+
+# Significance
+gender_results$Sig <- ifelse(gender_results$P_BH < .001, "***",
+                      ifelse(gender_results$P_BH < .01, "**",
+                      ifelse(gender_results$P_BH < .05, "*", "")))
+
+View(gender_results)
+
+write.csv(
+  gender_results,
+  "~/Desktop/research/Elton/SARA/Gender_Differences.csv",
+  row.names = FALSE
+)
+
+#non parametric, using medians instead of means when the data isn't distributed
+```
+
+```{r}
+# CD-RISC medians
+cdrisc_median <- aggregate(
+  cdrisc ~ sex,
+  data = data,
+  FUN = median,
+  na.rm = TRUE
+)
+
+write.csv(
+  cdrisc_median,
+  "~/Desktop/research/Elton/SARA/CDRISC_Median_by_Sex.csv",
+  row.names = FALSE
+)
+
+# CD-RISC means
+cdrisc_mean <- aggregate(
+  cdrisc ~ sex,
+  data = data,
+  FUN = mean,
+  na.rm = TRUE
+)
+
+write.csv(
+  cdrisc_mean,
+  "~/Desktop/research/Elton/SARA/CDRISC_Mean_by_Sex.csv",
+  row.names = FALSE
+)
+
+
+# Medians for significant variables
+gender_medians <- aggregate(
+  cbind(meanrt, stdrt, err_com, cdrisc) ~ sex,
+  data = data,
+  FUN = median,
+  na.rm = TRUE
+)
+
+write.csv(
+  gender_medians,
+  "~/Desktop/research/Elton/SARA/Gender_Medians.csv",
+  row.names = FALSE
+)
+
+
+# Means for significant variables
+gender_means <- aggregate(
+  cbind(meanrt, stdrt, err_com, cdrisc) ~ sex,
+  data = data,
+  FUN = mean,
+  na.rm = TRUE
+)
+
+write.csv(
+  gender_means,
+  "~/Desktop/research/Elton/SARA/Gender_Means.csv",
+  row.names = FALSE
+)
+```
+
+```{r}
+# better version with effect size looped in
+
+gender_results <- data.frame()
+
+for (v in variables) {
+
+  temp <- data[, c("sex", v)]
+  temp <- temp[complete.cases(temp), ]
+
+  test <- wilcox.test(temp[[v]] ~ temp$sex)
+
+  n1 <- sum(temp$sex == "Male")
+  n2 <- sum(temp$sex == "Female")
+  U <- as.numeric(test$statistic)
+
+  rank_biserial <- (2 * U) / (n1 * n2) - 1 #converts W stat into effect size - tells you how large the difference is (larger the more different)
+#positive = males have higher values, negative = femail have higher values
+  
+  gender_results <- rbind(
+    gender_results,
+    data.frame(
+      Variable = v,
+      N_Male = n1,
+      N_Female = n2,
+      W = U,
+      Rank_Biserial = round(rank_biserial, 3),
+      P = test$p.value
+    )
+  )
+}
+
+gender_results$P_BH <- p.adjust(gender_results$P, method = "BH")
+gender_results
+
+write.csv(
+  gender_results,
+  "~/Desktop/research/Elton/SARA/Gender_Differences_again.csv",
+  row.names = FALSE
+)
+```
+```{r}
+gender_results[gender_results$P_BH < .05, ]
+```
+
+```{r}
+#going to make a forest plot!!!
+library(ggplot2)
+
+# Keep only significant variables
+sig_gender <- subset(
+  gender_results,
+  Variable %in% c("meanrt", "stdrt", "err_com", "cdrisc")
+)
+
+# Nice labels
+sig_gender$Variable <- factor(
+  sig_gender$Variable,
+  levels = c("cdrisc", "err_com", "stdrt", "meanrt"),
+  labels = c(
+    "CD-RISC",
+    "Commission Errors",
+    "RT Variability",
+    "Mean RT"
+  )
+)
+
+ggplot(sig_gender,
+       aes(x = Rank_Biserial,
+           y = Variable)) +
+
+  # zero line
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    color = "gray50"
+  ) +
+
+  # connect points to zero
+  geom_segment(
+    aes(x = 0,
+        xend = Rank_Biserial,
+        y = Variable,
+        yend = Variable),
+    color = "gray75",
+    linewidth = 1
+  ) +
+
+  # points
+  geom_point(
+    color = "#FA4616",
+    size = 5
+  ) +
+
+  # effect size labels
+  geom_text(
+    aes(label = sprintf("%.2f", Rank_Biserial)),
+    nudge_x = 0.025,
+    size = 5,
+    fontface = "bold"
+  ) +
+
+  labs(
+    title = "Significant Gender Differences",
+    subtitle = "Rank-biserial effect sizes",
+    x = "Female Higher                     Rank-Biserial Correlation                     Male Higher",
+    y = NULL
+  ) +
+
+  theme_classic(base_size = 15) +
+
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.y = element_text(face = "bold"),
+    axis.ticks.y = element_blank(),
+    axis.line.y = element_blank()
+  )
+ggsave(
+  "~/Desktop/research/Elton/SARA/Gender_Effect_Size_Plot.pdf",
+  width = 8,
+  height = 5
+)
+
+```
+
+```{r}
+#some tests to confirm data validity
+cor.test(data$meanrt, data$err_com, method="spearman", exact=FALSE)
+```
+
+```{r}
+
+data <- read.csv(
+  "~/Desktop/research/Elton/SARA/sara_data_VM.csv",
+  na.strings = "-999"
+)
+
+table(data$sex)
+
+males <- subset(data, sex == 0)
+females <- subset(data, sex == 1)
+
+nrow(males)
+nrow(females)
+
+attention <- c(
+  "meanrt",
+  "stdrt",
+  "err_com",
+  "err_om",
+  "imp_err3",
+  "imp_err_total",
+  "d_prime",
+  "dsm_inatten",
+  "bis_first",
+  "bis_second"
+)
+
+resilience <- c(
+  "cdrisc",
+  "cyrm_total",
+  "cyrm_personal",
+  "cyrm_care"
+)
+
+run_correlations <- function(df) {
+
+  results <- data.frame()
+
+  for(att in attention){
+
+    for(res in resilience){
+
+      temp <- df[, c(att, res)]
+      temp <- temp[complete.cases(temp), ]
+
+      test <- cor.test(
+        temp[[att]],
+        temp[[res]],
+        method = "spearman",
+        exact = FALSE
+      )
+
+      results <- rbind(
+        results,
+        data.frame(
+          Attention = att,
+          Resilience = res,
+          N = nrow(temp),
+          Rho = round(unname(test$estimate), 3),
+          P = test$p.value
+        )
+      )
+    }
+  }
+
+  results$P_BH <- p.adjust(results$P, method = "BH")
+
+  results$Sig <- ifelse(results$P_BH < .001, "***",
+                 ifelse(results$P_BH < .01, "**",
+                 ifelse(results$P_BH < .05, "*", "")))
+
+  results <- results[order(results$P_BH), ]
+
+  return(results)
+}
+
+male_results <- run_correlations(males)
+
+female_results <- run_correlations(females)
+
+print(male_results)
+
+print(female_results)
+
+write.csv(
+  male_results,
+  "~/Desktop/research/Elton/SARA/Male_Correlations.csv",
+  row.names = FALSE
+)
+
+write.csv(
+  female_results,
+  "~/Desktop/research/Elton/SARA/Female_Correlations.csv",
+  row.names = FALSE
+)
+```
+
+```{r}
+nrow(males)
+nrow(females)
+```
+
+```{r}
+#controlling for sex
+install.packages("ppcor")
+```
+
+```{r}
+library(ppcor)
+
+data$sex_num <- ifelse(data$sex == "Female", 1, 0)
+
+partial_results <- data.frame()
+
+for(att in attention){
+
+  for(res in resilience){
+
+    temp <- data[, c(att, res, "sex_num")]
+    temp <- temp[complete.cases(temp), ]
+
+    test <- pcor.test(
+      x = temp[[att]],
+      y = temp[[res]],
+      z = temp$sex_num,
+      method = "spearman"
+    )
+
+    partial_results <- rbind(
+      partial_results,
+      data.frame(
+        Attention = att,
+        Resilience = res,
+        N = nrow(temp),
+        Partial_Rho = round(test$estimate, 3),
+        P = test$p.value
+      )
+    )
+  }
+}
+
+partial_results$P_BH <- p.adjust(partial_results$P, method = "BH")
+
+partial_results$Sig <- ifelse(
+  partial_results$P_BH < .001, "***",
+  ifelse(
+    partial_results$P_BH < .01, "**",
+    ifelse(partial_results$P_BH < .05, "*", "")
+  )
+)
+
+partial_results <- partial_results[order(partial_results$P_BH), ]
+
+write.csv(
+  partial_results,
+  "~/Desktop/research/Elton/SARA/Partial_Correlations_Controlling_for_Sex.csv",
+  row.names = FALSE
+)
+```
+
+
