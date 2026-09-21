@@ -1,0 +1,333 @@
+---
+title: "ANT timing"
+output: html_document
+date: "2026-07-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#new new new mega new code with correct/ incorrect fixes
+
+library(readr)
+library(dplyr)
+
+
+# INPUT / OUTPUT FOLDERS
+
+
+input_dir <- "~/Desktop/research/Elton/ANT"
+output_dir <- "~/Desktop/research/Elton/ANT_timing"
+
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
+
+# FIND ALL LARA FILES
+
+
+files <- list.files(
+  path = input_dir,
+  pattern = "^LARA[0-9]{3}.*\\.csv$",
+  full.names = TRUE
+)
+
+
+# QC SUMMARY DATA FRAME
+
+
+qc_summary <- data.frame(
+  Participant = character(),
+  Run = integer(),
+  BlankCue = integer(),
+  CenterCue = integer(),
+  SpatialCue = integer(),
+  CongruentCorrect = integer(),
+  CongruentIncorrect = integer(),
+  IncongruentCorrect = integer(),
+  IncongruentIncorrect = integer(),
+  TotalCorrect = integer(),
+  Flag = character(),
+  stringsAsFactors = FALSE
+)
+
+
+# PROCESS EACH PARTICIPANT
+
+
+for (file in files) {
+
+  cat("\n=========================================\n")
+  cat("Processing:", basename(file), "\n")
+
+  dat <- read_csv(file, show_col_types = FALSE)
+
+  participant <- regmatches(
+    basename(file),
+    regexpr("^LARA[0-9]{3}", basename(file))
+  )
+
+
+  # STANDARDIZE RESPONSE KEYS
+
+
+  dat <- dat %>%
+    mutate(
+      resp.keys = tolower(as.character(resp.keys)),
+      corrAns = tolower(as.character(corrAns))
+    )
+
+
+  # SCORE CORRECT RESPONSES
+  #
+  # LEFT  = 1 or b
+  # RIGHT = 2 or y
+  #
+  # Any other response (including None) = incorrect
+
+
+  dat <- dat %>%
+    mutate(
+      correct = case_when(
+        corrAns == "left" &
+          resp.keys %in% c("1", "b") ~ 1,
+
+        corrAns == "right" &
+          resp.keys %in% c("2", "y") ~ 1,
+
+        TRUE ~ 0
+      )
+    )
+
+
+  # PROCESS EACH RUN
+
+
+  runs <- sort(unique(na.omit(dat$run)))
+
+  for (run_number in runs) {
+
+    run_dat <- dat %>%
+      filter(run == run_number)
+
+
+    # TIME ZERO
+
+
+    time0 <- run_dat$MainInstruc.stopped[
+      which(!is.na(run_dat$MainInstruc.stopped))[1]
+    ]
+
+    run_dat <- run_dat %>%
+      mutate(
+        cue_onset = cues.started - time0,
+        target_onset = target.started - time0
+      )
+
+
+    # CUE REGRESSORS
+
+
+    blank_cue <- run_dat %>%
+      filter(cue == "stim/blank.png") %>%
+      pull(cue_onset) %>%
+      na.omit()
+
+    center_cue <- run_dat %>%
+      filter(cue == "stim/centre.png") %>%
+      pull(cue_onset) %>%
+      na.omit()
+
+    spatial_cue <- run_dat %>%
+      filter(cue %in% c(
+        "stim/lower.png",
+        "stim/upper.png"
+      )) %>%
+      pull(cue_onset) %>%
+      na.omit()
+
+
+    # TARGET REGRESSORS
+
+
+    congruent_correct <- run_dat %>%
+      filter(
+        tar %in% c(
+          "stim/congLeft.png",
+          "stim/congRight.png"
+        ),
+        correct == 1
+      ) %>%
+      pull(target_onset) %>%
+      na.omit()
+
+    congruent_incorrect <- run_dat %>%
+      filter(
+        tar %in% c(
+          "stim/congLeft.png",
+          "stim/congRight.png"
+        ),
+        correct == 0
+      ) %>%
+      pull(target_onset) %>%
+      na.omit()
+
+    incongruent_correct <- run_dat %>%
+      filter(
+        tar %in% c(
+          "stim/incongLeft.png",
+          "stim/incongRight.png"
+        ),
+        correct == 1
+      ) %>%
+      pull(target_onset) %>%
+      na.omit()
+
+    incongruent_incorrect <- run_dat %>%
+      filter(
+        tar %in% c(
+          "stim/incongLeft.png",
+          "stim/incongRight.png"
+        ),
+        correct == 0
+      ) %>%
+      pull(target_onset) %>%
+      na.omit()
+
+
+    # QUALITY CONTROL
+
+
+    total_correct <-
+      length(congruent_correct) +
+      length(incongruent_correct)
+
+    flag <- ifelse(total_correct < 10, "YES", "NO")
+
+    cat("\nParticipant:", participant,
+        " Run:", run_number, "\n")
+
+    cat("Blank cue:", length(blank_cue), "\n")
+    cat("Center cue:", length(center_cue), "\n")
+    cat("Spatial cue:", length(spatial_cue), "\n")
+    cat("Congruent correct:", length(congruent_correct), "\n")
+    cat("Congruent incorrect:", length(congruent_incorrect), "\n")
+    cat("Incongruent correct:", length(incongruent_correct), "\n")
+    cat("Incongruent incorrect:", length(incongruent_incorrect), "\n")
+    cat("Total correct:", total_correct, "\n")
+
+    if(flag=="YES"){
+      warning(
+        paste(
+          participant,
+          "Run",
+          run_number,
+          "may have reversed response mapping."
+        )
+      )
+    }
+    
+
+    # CREATE SINGLE TIMING CSV
+
+
+    max_length <- max(
+      length(blank_cue),
+      length(center_cue),
+      length(spatial_cue),
+      length(congruent_correct),
+      length(congruent_incorrect),
+      length(incongruent_correct),
+      length(incongruent_incorrect)
+    )
+
+    pad <- function(x, n) {
+      c(x, rep(NA, n - length(x)))
+    }
+
+    timing_df <- data.frame(
+      blank_cue = pad(blank_cue, max_length),
+      center_cue = pad(center_cue, max_length),
+      spatial_cue = pad(spatial_cue, max_length),
+      congruent_correct = pad(congruent_correct, max_length),
+      congruent_incorrect = pad(congruent_incorrect, max_length),
+      incongruent_correct = pad(incongruent_correct, max_length),
+      incongruent_incorrect = pad(incongruent_incorrect, max_length)
+    )
+
+    write.csv(
+      timing_df,
+      file = file.path(
+        output_dir,
+        paste0(participant, "_run", run_number, "_timing.csv")
+      ),
+      row.names = FALSE,
+      na = ""
+    )
+
+
+    # ADD TO QC SUMMARY
+
+
+    qc_summary <- rbind(
+      qc_summary,
+      data.frame(
+        Participant = participant,
+        Run = run_number,
+        BlankCue = length(blank_cue),
+        CenterCue = length(center_cue),
+        SpatialCue = length(spatial_cue),
+        CongruentCorrect = length(congruent_correct),
+        CongruentIncorrect = length(congruent_incorrect),
+        IncongruentCorrect = length(incongruent_correct),
+        IncongruentIncorrect = length(incongruent_incorrect),
+        TotalCorrect = total_correct,
+        Flag = flag,
+        stringsAsFactors = FALSE
+      )
+    )
+
+  }   # END RUN LOOP
+
+  cat("Finished:", participant, "\n")
+
+}   # END PARTICIPANT LOOP
+
+
+# WRITE QC SUMMARY
+
+
+write.csv(
+  qc_summary,
+  file = file.path(output_dir, "ANT_QC_summary.csv"),
+  row.names = FALSE
+)
+
+cat("\n=========================================\n")
+cat("timing file created successfully!\n")
+cat("QC summary saved to:\n")
+cat(file.path(output_dir, "ANT_QC_summary.csv"), "\n")
+cat("=========================================\n")
+```
+
+
+```{r}
+#this is me trying to find the issue
+```
+
+```{r}
+unique(dat$corrAns)
+
+unique(dat$resp.keys)
+```
+
+```{r}
+table(dat$corrAns, dat$resp.keys, useNA = "ifany")
+```
+
+```{r}
+
+```

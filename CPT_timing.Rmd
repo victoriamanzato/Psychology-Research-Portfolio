@@ -1,0 +1,119 @@
+---
+title: "CPT_timing"
+output: html_document
+date: "2026-06-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+input_folder <- "~/Desktop/research/Elton/CPT"
+output_folder <- "~/Desktop/research/Elton/CPT_timing"
+
+if (!dir.exists(output_folder)) {
+  dir.create(output_folder)
+}
+
+csv_files <- list.files(
+  path = input_folder,
+  pattern = "\\.csv$",
+  full.names = TRUE
+)
+
+# block order
+block_order <- c(1,2,2,1,2,1,1,2,1,2,2,1)
+
+# convert block numbers to labels
+block_labels <- ifelse(block_order == 1, "on", "off")
+
+# helper function: checks if a column cell is populated
+is_populated <- function(x) {
+  !is.na(x) & trimws(as.character(x)) != ""
+}
+
+# helper function: safely converts values to numeric
+to_num <- function(x) {
+  x <- trimws(as.character(x))
+  x[x %in% c("", "NA", "None", "none", "NULL")] <- NA
+  as.numeric(x)
+}
+
+for (file in csv_files) {
+  
+  # only read files that start with LARA followed by 3 numbers
+  if (!grepl("^LARA[0-9]{3}(\\D|$)", basename(file))) {
+    message("Skipping file because it does not start with LARA###: ", basename(file))
+    next
+  }
+  
+  # read full csv
+  df <- read.csv(file, stringsAsFactors = FALSE)
+  
+  # find needed columns
+  blocks_col <- grep("^blocks\\.thisN$", names(df), value = TRUE)[1]
+  trials_rep_col <- grep("^trials\\.thisRepN$", names(df), value = TRUE)[1]
+  stim_col <- grep("^stimulus\\.started$", names(df), value = TRUE)[1]
+  block_stop_col <- grep("^block_instr\\.stopped$", names(df), value = TRUE)[1]
+  
+  if (is.na(blocks_col) || is.na(trials_rep_col) || is.na(stim_col) || is.na(block_stop_col)) {
+    message("Skipping file because required columns are missing: ", basename(file))
+    message("Columns found were: ", paste(names(df), collapse = ", "))
+    next
+  }
+  
+  # get the block_instr.stopped reference value
+  block_instr_stopped_values <- to_num(df[[block_stop_col]])
+  block_instr_stopped <- block_instr_stopped_values[!is.na(block_instr_stopped_values)][1]
+  
+  if (is.na(block_instr_stopped)) {
+    message("Skipping file because block_instr.stopped has no usable value: ", basename(file))
+    next
+  }
+  
+  # only use rows where:
+  # blocks.thisN is populated
+  # AND trials.thisRepN is 0
+  task_rows <- is_populated(df[[blocks_col]]) & to_num(df[[trials_rep_col]]) == 0
+  
+  # extract stimulus.started only from those rows
+  stimulus_started <- to_num(df[[stim_col]][task_rows])
+  
+  # remove blank/NA stimulus values
+  stimulus_started <- stimulus_started[!is.na(stimulus_started)]
+  
+  # make sure we have exactly 12 block-start trials
+  if (length(stimulus_started) < 12) {
+    message("Skipping file because fewer than 12 block-start trials were found: ", basename(file))
+    message("Block-start trials found: ", length(stimulus_started))
+    next
+  }
+  
+  # only use the first trial from each of the 12 blocks
+  stimulus_started <- stimulus_started[1:12]
+  
+  # timing = stimulus.started - block_instr.stopped
+  time <- stimulus_started - block_instr_stopped
+  
+  # cue should now have only 12 values, one per block
+  cue <- block_labels
+  
+  output_df <- data.frame(
+    cue = cue,
+    time = time,
+    stringsAsFactors = FALSE
+  )
+  
+  participant_id <- sub(
+    pattern = "^(LARA[0-9]{3}).*",
+    replacement = "\\1",
+    x = tools::file_path_sans_ext(basename(file))
+  )
+  
+  output_file <- file.path(output_folder, paste0(participant_id, "_timing.csv"))
+  
+  write.csv(output_df, output_file, row.names = FALSE)
+}
+
+```

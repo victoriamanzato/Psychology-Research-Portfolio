@@ -1,0 +1,137 @@
+---
+title: "timing files for fmri"
+output: html_document
+date: "2026-05-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#get from input folder
+#create output folder
+
+input_folder <- "~/Desktop/research/Elton/CSVRaws"
+output_folder <- "~/Desktop/research/Elton/timings"
+
+#if (!dir.exists(output_folder)) {
+ # dir.create(output_folder)
+#}
+
+csv_files <- list.files(path = input_folder,pattern = "\\.csv$",full.names = TRUE)
+
+for (file in csv_files){
+  df <- read.csv(file, stringsAsFactors = FALSE)
+  num_rows<- nrow(df)
+  #if less than 80, skip
+  
+  if(num_rows < 80){
+    message("skipping file because it has less than 80 rows") 
+    next
+  }
+  
+  #columns
+  req_cols <- c("cuetype", "image.started", "getready.stopped")
+  
+  #should i write something to check if all the colums are there?
+  
+  cuetype <- df$cuetype
+  image_started<- df$image.started
+  getready_stopped<- df$getready.stopped[1]
+  print(getready_stopped)
+  
+  #get new time
+  time <- image_started - getready_stopped
+  
+  #new dataframe
+  output_df <- data.frame(cue  = cuetype, time = time, stringsAsFactors = FALSE)
+  
+  #partID to name new file (i think)
+  participant_id <- sub(
+  pattern = "^(LARA[0-9]+).*",
+  replacement = "\\1",
+  x = tools::file_path_sans_ext(basename(file))
+)
+  
+  output_file <- file.path(output_folder, paste0(participant_id, "_timing.csv"))
+  
+  # Save it
+  write.csv(output_df, output_file, row.names = FALSE)
+  
+}
+```
+
+
+```{r}
+#thought i would give it a shot to separte the files by cuetype. this is that version.
+
+#get from input folder
+#create output folder
+
+input_folder <- "~/Desktop/research/Elton/CSVRaws"
+output_folder <- "~/Desktop/research/Elton/timingssorted"
+
+if (!dir.exists(output_folder)) {
+  dir.create(output_folder)
+}
+
+csv_files <- list.files(path = input_folder,pattern = "LARA.*\\.csv$",full.names = TRUE)
+cue_types <- c("reward", "nonreward", "alcohol", "nonalcohol")
+
+
+for (file in csv_files){
+  df <- read.csv(file, stringsAsFactors = FALSE)
+  num_rows<- nrow(df)
+  #if less than 80, skip
+  
+  if(num_rows < 80){
+    message("skipping file because it has less than 80 rows") 
+    next
+  }
+  
+  #columns
+  req_cols <- c("cuetype", "image.started", "getready.stopped")
+  
+  #should i write something to check if all the colums are there?
+  
+  #partID to name new file (i think)
+  participant_id <- sub(
+  pattern = "^(LARA[0-9]+).*",
+  replacement = "\\1",
+  x = tools::file_path_sans_ext(basename(file))
+)
+  
+  cuetype <- df$cuetype
+  image_started<- df$image.started
+  getready_stopped<- df$getready.stopped[1]
+  print(getready_stopped)
+  
+  #get new time
+  time <- image_started - getready_stopped
+  
+  #new dataframe
+  output_df <- data.frame(cue  = cuetype, time = time, stringsAsFactors = FALSE)
+  
+  output_df$cue_clean <- tolower(trimws(output_df$cue))
+  
+  # makes one file per cue type
+  for (cue_type in cue_types) {
+    
+    cue_df <- output_df[
+      output_df$cue_clean == cue_type,
+      c("cue", "time")
+    ]
+    
+    output_file <- file.path(
+      output_folder,
+      paste0(participant_id, "_", cue_type, "_timing.csv")
+    )
+    
+    write.csv(cue_df, output_file, row.names = FALSE)
+    
+    message("Saved ", cue_type, " timing file for ", participant_id)
+  }
+}
+
+```
