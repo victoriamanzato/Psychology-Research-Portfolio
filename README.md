@@ -1,5 +1,5 @@
 # Psychology-Research-Portfolio
-My name is Victoria Manzato and I'm a senior studying Psychology (Behavioral and Cognitive Neuroscience track) and Statistics. I'm passionate about using psychology and research to help people, specifically those with chronic disease and mood disorders. 
+My name is Victoria Manzato and I'm a senior studying Psychology (Behavioral and Cognitive Neuroscience track) and Statistics. I'm passionate about using psychology and research to help people, specifically those with chronic disease, substance abuse, mood disorders, and the interaction between all three. 
 
 Throughout my time at UF, I have worked at three different labs, learning and applying statistical analysis methods within lab assignments as well as in personal projects. 
 
