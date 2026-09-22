@@ -7,9 +7,9 @@ date: "2026-07-16"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
+# This code retrieves raw data collected during an in scanner Attention Network Task and extracts the exact times where specific stimuli 
+# was presented. There are 7 total regressors. 
 ```{r}
-#new new new mega new code with correct/ incorrect fixes
 
 library(readr)
 library(dplyr)
