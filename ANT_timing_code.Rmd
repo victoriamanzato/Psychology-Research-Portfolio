@@ -3,6 +3,8 @@ title: "ANT timing"
 output: html_document
 date: "2026-07-16"
 ---
+## Overview
+Generates fMRI event-timing files for the Attention Network Test (ANT) from PsychoPy output. For each participant and run, the script scores response accuracy and computes onsets relative to the end of the task instructions. It sorts events into cue regressors (no cue, center cue, spatial cue) and target regressors (congruent or incongruent, split by correct and incorrect response). It writes one timing file per run plus a quality-control summary that flags runs with fewer than 10 correct responses, which indicates a possible reversed response mapping.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
