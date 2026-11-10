@@ -3,6 +3,8 @@ title: "SARA Primary Correlation analysis"
 output: html_document
 date: "2026-07-12"
 ---
+## Overview
+Primary analysis for the SARA project. Tests whether attention relates to resilience using Spearman correlations between 10 attention measures and 4 resilience measures (40 tests). The attention measures are 7 Sustained Attention to Response Task (SART) indices, the CAARS DSM inattention subscale, and BIS first- and second-order impulsivity. The resilience measures are CD-RISC and CYRM total, personal, and caregiver scores. P-values are corrected with Benjamini-Hochberg false discovery rate. The script also checks SART score distributions and plots the correlations as a heatmap.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
