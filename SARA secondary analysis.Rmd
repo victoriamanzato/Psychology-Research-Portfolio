@@ -3,6 +3,8 @@ title: "Secondary Analyses_SARA"
 output: html_document
 date: "2026-07-31"
 ---
+## Overview
+Follow-up analyses for the SARA project. Examines how SART error types relate to each other (commission, omission, and impulsive errors) and to d′, self-reported inattention, and impulsivity. Uses partial Spearman correlations to test whether commission errors relate to resilience (CD-RISC) after controlling for impulsivity or d′. Fits multiple linear regressions to estimate the unique contribution of self-reported attention, objective attention, reaction time, and sex to CD-RISC scores, with residual diagnostics and an inattention × sex interaction model.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
