@@ -3,6 +3,8 @@ title: "ANT_timing"
 output: html_document
 date: "2026-07-07"
 ---
+## Overview
+Computes SART sensitivity (d′) for each participant using signal detection theory. Hits are correct responses on go trials and false alarms are commission errors on no-go trials. A log-linear correction keeps hit and false-alarm rates of 0 or 1 from producing infinite values. Outputs one d′ score per participant.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
