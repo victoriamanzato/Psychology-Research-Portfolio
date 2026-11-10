@@ -3,6 +3,8 @@ title: "Gender Differences"
 output: html_document
 date: "2026-07-27"
 ---
+## Overview
+Tests sex differences across 14 attention and resilience variables using Mann-Whitney U tests with Benjamini-Hochberg correction. Effect sizes are reported as rank-biserial correlations and plotted as a forest plot. Also reruns the attention-resilience correlations separately for male and female participants, and computes partial Spearman correlations controlling for sex.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
