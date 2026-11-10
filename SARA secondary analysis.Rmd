@@ -1,0 +1,255 @@
+---
+title: "Secondary Analyses_SARA"
+output: html_document
+date: "2026-07-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+
+# read data
+data <- read.csv(
+  "~/Desktop/research/Elton/SARA/sara_data_VM.csv",
+  na.strings = "-999"
+)
+```
+
+```{r}
+#comission/omission errors correlated?
+
+cor.test(data$err_com,
+         data$err_om,
+         method = "spearman",
+         exact = FALSE)
+
+```
+
+moderately positive correlation (significant)
+
+```{r}
+#are impulsive errors correlated to comission errors??
+
+#total
+cor.test(data$imp_err_total,
+         data$err_com,
+         method = "spearman",
+         exact = FALSE)
+
+#on imp erorrs3
+cor.test(data$imp_err3,
+         data$err_com,
+         method = "spearman",
+         exact = FALSE)
+```
+
+moderately positive correlation (significant) for both
+
+```{r}
+cor.test(data$imp_err_total,
+         data$err_om,
+         method = "spearman",
+         exact = FALSE)
+```
+
+moderately positive correlation (significant)
+
+```{r}
+#comission errors related to attention?
+  cor.test(data$err_com,
+         data$d_prime,
+         method = "spearman",
+         exact = FALSE)
+```
+
+very strong negative correlation
+
+```{r}
+cor.test(data$err_com,
+         data$dsm_inatten,
+         method = "spearman",
+         exact = FALSE)
+
+cor.test(data$err_com,
+         data$bis_second,
+         method = "spearman",
+         exact = FALSE)
+
+```
+
+no correlation.. even if yes, positive
+
+```{r}
+#does commission error related to resilience after controlling for impulsivity?
+#sel report imp
+library(ppcor)
+
+pcor.test(
+  x = data$err_com,
+  y = data$cdrisc,
+  z = data$bis_second,
+  method = "spearman"
+)
+```
+
+```{r}
+#same but objective imp
+pcor.test(
+  x = data$err_com,
+  y = data$cdrisc,
+  z = data$imp_err_total,
+  method = "spearman")
+```
+
+That means controlling for impulsivity did not uncover a hidden relationship between comission errors and resilience.
+
+```{r}
+#commission error related to resilience after controlling for attention?
+
+pcor.test(
+  x = data$err_com,
+  y = data$cdrisc,
+  z = data$d_prime,
+  method = "spearman"
+)
+
+```
+
+That means controlling for attention did not uncover a hidden relationship between comission errors and resilience.
+
+```{r}
+#How much do self-reported attention, objective attention, and sex each uniquely predict CD-RISC scores?
+
+model <- lm(cdrisc ~ dsm_inatten + d_prime + sex, data = data)
+
+summary(model)
+
+```
+
+```{r}
+#Which measures uniquely predict resilience after accounting for the others?
+
+model <- lm(cdrisc ~dsm_inatten + bis_second + d_prime + meanrt + stdrt +sex,data = data
+)
+
+summary(model)
+```
+
+```{r}
+#is this ok?
+
+par(mfrow = c(2,2))
+plot(model)
+```
+
+```{r}
+#interaction
+model <- lm(cdrisc ~ dsm_inatten * sex,data = data
+)
+summary(model)
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(data, aes(x = d_prime, y = err_com)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "Objective Attention (d′)",
+    y = "Commission Errors",
+    title = "Objective Attention and Commission Errors"
+  ) +
+  theme_classic()
+
+ggsave(
+  "~/Desktop/research/Elton/SARA/Objective_Attention_Commission_Errors.png",
+  width = 10,
+  height = 6,
+  units = "in",
+  dpi = 600
+)
+```
+
+```{r}
+ggplot(data, aes(x = imp_err_total, y = err_com)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "Total Impulsive Errors",
+    y = "Commission Errors",
+    title = "Impulsivity and Commission Errors"
+  ) +
+  theme_classic()
+ggsave(
+  "~/Desktop/research/Elton/SARA/Objective_Attention_Commission_Errors.png",
+  width = 10,
+  height = 6,
+  units = "in",
+  dpi = 600
+)
+```
+
+```{r}
+ggplot(data, aes(x = err_om, y = err_com)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "Omission Errors",
+    y = "Commission Errors",
+    title = "Commission and Omission Errors"
+  ) +
+  theme_classic()
+ggsave(
+  "~/Desktop/research/Elton/SARA/Objective_Attention_Commission_Errors.png",
+  width = 10,
+  height = 6,
+  units = "in",
+  dpi = 600
+)
+```
+```{r}
+library(ggplot2)
+
+ggplot(data, aes(x = dsm_inatten, y = cdrisc)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "Self-reported inattention",
+    y = "Resilience (CD-RISC)",
+    title = "Self-reported inattention is negatively associated with resilience"
+  ) +
+  theme_classic()
+
+ggsave(
+  "~/Desktop/research/Elton/SARA/resil and self report.png",
+  width = 10,
+  height = 6,
+  units = "in",
+  dpi = 600)
+```
+```{r}
+library(ggplot2)
+
+ggplot(data, aes(x = d_prime, y = cdrisc)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  labs(
+    x = "d prime",
+    y = "Resilience (CD-RISC)",
+    title = "Self-reported inattention is not associated with resilience"
+  ) +
+  theme_classic()
+
+ggsave(
+  "~/Desktop/research/Elton/SARA/resil and d prime.png",
+  width = 10,
+  height = 6,
+  units = "in",
+  dpi = 600)
+
+```
