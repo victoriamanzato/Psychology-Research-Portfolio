@@ -3,6 +3,8 @@ title: "CPT_timing"
 output: html_document
 date: "2026-06-09"
 ---
+## Overview
+Generates block-design fMRI timing files for the Continuous Performance Task (CPT) from PsychoPy output. For each participant, extracts the onset of the first trial in each of the 12 blocks relative to the end of the block instructions and labels each block "on" or "off" according to the task's fixed block order. Files missing required columns or with fewer than 12 blocks are skipped and logged.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
