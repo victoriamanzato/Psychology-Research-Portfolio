@@ -3,6 +3,8 @@ title: "SART vs CAARS/BIS Code"
 output: html_document
 date: "2026-07-27"
 ---
+## Overview
+Tests whether objective and self-reported attention measure the same construct. Runs Spearman correlations between 7 SART performance indices and 3 self-report scales (CAARS DSM inattention, BIS first-order, BIS second-order), 21 tests in total, with Benjamini-Hochberg correction.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
